@@ -3,7 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <string.h>
 #define INPUT "./day3/input"
+
+//Note to self. Don't code late at night or this file happens
 
 //Load data into a 2D array,
 //  iterate
@@ -207,6 +210,16 @@ char rd(struct matrix* mat, int x, int y) {
     return get(mat, x+1, y+1);
 }
 
+
+void printHits(bool* hits) {
+    for (int i = 0; i < 9; i++) {
+        fprintf(stdout, "%d, ", hits[i]);
+        if ((i+1) % 3 == 0) {
+            fprintf(stdout, "\n");
+        }
+    }
+}
+
 void reduce(bool* hits) {
     if (hits[0] && hits[1] && hits[2]) {
         hits[0] = false;
@@ -238,7 +251,18 @@ int parseNumBacktrack(struct matrix* mat, int x, int y) {
     while (localx > 0 && isdigit(mat->vecs[y].data[localx-1])) {
         localx -= 1;
     }
-    return strtol(&mat->vecs[y].data[localx], NULL, 10);
+    
+    char temp[mat->vecs[y].len];
+    memcpy(temp, mat->vecs[y].data, sizeof(char) * mat->vecs[y].len);
+
+    //for (int i = 0; i < mat->vecs[y].len; i++) {
+    //    fprintf(stdout, "%c", temp[i]);
+    //}
+    //fprintf(stdout, "\n");
+    
+    int output = strtol(&temp[localx], NULL, 10);
+    //fprintf(stdout, "found %d\n", output);
+    return output;
 }
 
 int calcGearRatios(struct matrix* mat, int x, int y, bool* hits) {
@@ -248,21 +272,21 @@ int calcGearRatios(struct matrix* mat, int x, int y, bool* hits) {
 
     for (int i = 2; i >= 0; i--) {
         if (hits[i]) {
-            nums[index] = parseNumBacktrack(mat, x + y - 1, y - 1);
+            nums[index] = parseNumBacktrack(mat, x + i - 1, y - 1);
             index += 1;
         }
     }
 
     for (int i = 5; i >= 3; i--) {
         if (hits[i]) {
-            nums[index] = parseNumBacktrack(mat, x + y - 4, y);
+            nums[index] = parseNumBacktrack(mat, x + i - 4, y);
             index += 1;
         }
     }
 
     for (int i = 8; i >= 6; i--) {
         if (hits[i]) {
-            nums[index] = parseNumBacktrack(mat, x + y - 7, y + 1);
+            nums[index] = parseNumBacktrack(mat, x + i - 7, y + 1);
             index += 1;
         }
     }
@@ -340,7 +364,7 @@ bool isGear(struct matrix* mat, int x, int y, int* out) {
 
     if (adjNums == 2) {
         *out = calcGearRatios(mat, x, y, hits);
-        fprintf(stdout, "Out: %d\n", *out);
+        //fprintf(stdout, "Out: %d\n", *out);
         return true;
     }
     return false;
@@ -370,7 +394,7 @@ void part1(const char* path) {
             for (int j = 0; j < mat.vecs[i].len; j++) {
                 if (isdigit(mat.vecs[i].data[j]) && checkBorders(&mat, j, i)) {
                     int num = parseNum(&mat, j, i);
-                    fprintf(stdout, "PART 1: Found num: %d\n", num);
+                    //fprintf(stdout, "PART 1: Found num: %d\n", num);
                     sum += num;
 
                     //skip digits
@@ -381,7 +405,7 @@ void part1(const char* path) {
                 }
                 //fprintf(stdout, "%c", mat.vecs[i].data[j]);
             }
-            fprintf(stdout, "%d, %d\n", mat.len, i);
+            //fprintf(stdout, "%d, %d\n", mat.len, i);
         }
 
         fprintf(stdout, "PART 1: The sum of the part numbers is %d\n", sum);
@@ -416,7 +440,7 @@ void part2(const char* path) {
                 if (mat.vecs[i].data[j] == '*') {
                     if (isGear(&mat, j, i, &number)) {
                         sum += number;
-                        fprintf(stdout, "PART 2: Found a gear with ratio: %d\n", number);
+                        //fprintf(stdout, "PART 2: Found a gear with ratio: %d\n", number);
                     }
                 }
                 //fprintf(stdout, "%c", mat.vecs[i].data[j]);
@@ -433,6 +457,6 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         path = argv[1];
     }
-    //part1(path);
+    part1(path);
     part2(path);
 }
