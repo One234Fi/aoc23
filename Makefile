@@ -4,7 +4,7 @@ OBJS := day1, day2
 
 .PHONY: all dir clean
 
-all: dir bin/day1 bin/day2 bin/day3
+all: dir bin/day1 bin/day2 bin/day3 bin/day4
 
 dir:
 	mkdir -p bin
@@ -17,6 +17,9 @@ bin/day2: day2/main.c
 
 bin/day3: day3/main.c
 	gcc -g -o $@ $^
+
+bin/day4: day4/main.c
+	gcc -g -Wall -Werror -o $@ $^
 
 clean:
 	rm -r bin
