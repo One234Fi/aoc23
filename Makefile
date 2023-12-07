@@ -1,31 +1,21 @@
-#TODO: I should stop being lazy and automate this (or be lazier?)
+DAYS := $(addprefix day, 1 2 3 4 5 6)
+OBJS := $(addprefix bin/, $(DAYS))
 
-OBJS := day1, day2
+CFLAGS := -g -Wall -Werror
+LDFLAGS := -lpthread
 
 .PHONY: all dir clean
 
-all: dir bin/day1 bin/day2 bin/day3 bin/day4 bin/day5 bin/day6
+all: dir $(OBJS)
 
 dir:
 	mkdir -p bin
 
-bin/day1: day1/main.c
-	gcc -g -o $@ $^
+all: $(OBJS)
 
-bin/day2: day2/main.c
-	gcc -g -o $@ $^
+$(OBJS):
+	gcc $(CFLAGS) -o $@ $(addsuffix /main.c, $(notdir $@)) $(LDFLAGS)
 
-bin/day3: day3/main.c
-	gcc -g -o $@ $^
-
-bin/day4: day4/main.c
-	gcc -g -Wall -Werror -o $@ $^
-
-bin/day5: day5/main.c
-	gcc -g -Wall -Werror -o $@ $^ -lpthread
-
-bin/day6: day6/main.c
-	gcc -g -Wall -Werror -o $@ $^ 
 
 clean:
 	rm -r bin
