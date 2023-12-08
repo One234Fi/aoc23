@@ -69,7 +69,6 @@ card_2 get_card_2(char c) {
         case 'A': return Ace_2;
         case 'K': return King_2;
         case 'Q': return Queen_2;
-        case 'J': return Joker_2;
         case 'T': return Ten_2;
         case '9': return Nine_2;
         case '8': return Eight_2;
@@ -79,6 +78,7 @@ card_2 get_card_2(char c) {
         case '4': return Four_2;
         case '3': return Three_2;
         case '2': return Two_2;
+        case 'J': return Joker_2;
         default:
             fprintf(stderr, "Attempted to parse an invalid card: %c\n", c);
     }
@@ -97,86 +97,89 @@ typedef enum type {
     TYPE_SIZE
 } type;
 
-type get_type_2(card* cards) {
-    card types[13] = {0};
+type get_type_2(card_2* cards) {
+    card_2 types[13] = {0};
     for (uint32_t i = 0; i < 5; i++) {
         types[cards[i]] += 1;
     }
     uint32_t max = 0;
     uint32_t num_twos = 0;
-    for (uint32_t i = 0; i < 13; i++) {
+    uint32_t num_ones = 0;
+    uint32_t num_wilds = types[12];
+    for (uint32_t i = 0; i < 12; i++) {
         if (types[i] > max) {
             max = types[i];
         }
         if (types[i] == 2) {
             num_twos += 1;
         }
-    }
-    switch(max) {
-        case 5: return FiveOfAKind;
-        case 4: 
-            switch (types[12]) {
-                case 1:
-                case 4:
-                    return FiveOfAKind;
-                default:
-                    return FourOfAKind;
-            }
-        case 3:
-            switch (types[12]) {
-                case 1:
-                    return FourOfAKind;
-                case 2:
-                    return FiveOfAKind;
-                case 3:
-                    return FourOfAKind;
-                default:
-                    switch (num_twos) {
-                        case 0: return ThreeOfAKind;
-                        case 1: return FullHouse;
-                        default:
-                                break;
-                    }
-            }
-            break;
-        case 2:
-            switch (types[12]) {
-                case 1:
-                    switch (num_twos) {
-                        case 1: return ThreeOfAKind;
-                        case 2: return FullHouse;
-                        default:
-                                break;
-                    }
-                case 2:
-                    switch (num_twos) {
-                        case 1: return ThreeOfAKind;
-                        case 2: return FourOfAKind;
-                        default: break;
-                    }
-                default:
-                    switch (num_twos) {
-                        case 1: return OnePair;
-                        case 2: return TwoPair;
-                        default: break;
-                    }
-            }
-        case 1: 
-            if (num_twos == 0) {
-                return HighCard;
-            } else {
-                return OnePair;
-            }
-        default:
-            ;
+        if (types[i] == 1) {
+            num_ones += 1;
+        }
     }
 
-    fprintf(stderr, "Attempted to parse an invalid hand\n");
+    switch (max) {
+        case 5: return FiveOfAKind;
+
+        case 4: 
+                switch (num_wilds) {
+                    case 1: return FiveOfAKind;
+                    default: return FourOfAKind;
+                }
+
+        case 3: 
+                switch (num_wilds) {
+                    case 2: return FiveOfAKind;
+                    case 1: return FourOfAKind;
+                    case 0: switch (num_twos) {
+                                case 0: return ThreeOfAKind;
+                                case 1: return FullHouse;
+                            }
+                            break;
+                }
+                break;
+
+        case 2:
+                switch (num_wilds) {
+                    case 3: return FiveOfAKind;
+                    case 2: return FourOfAKind;
+                    case 1: switch (num_twos) {
+                                case 1: return ThreeOfAKind;
+                                case 2: return FullHouse;
+                            }
+                            break;
+                    case 0: switch (num_twos) {
+                                case 1: return OnePair;
+                                case 2: return TwoPair;
+                            }
+                            break;
+                }
+                break;
+
+        case 1: 
+                switch (num_wilds) {
+                    case 4: return FiveOfAKind;
+                    case 3: return FourOfAKind;
+                    case 2: return ThreeOfAKind;
+                    case 1: return OnePair;
+                    case 0: return HighCard;
+                }
+                break;
+
+        case 0: //All Jokers
+                return FiveOfAKind;
+    }
+
+    fprintf(stderr, "Attempted to parse an invalid hand:\n");
+    for (uint32_t i = 0; i < 5; i++) {
+        fprintf(stderr, "%d, ", cards[i]);
+    }
+    fprintf(stderr, "\n");
     return TYPE_SIZE;
 }
 
-type get_type(card_2* cards) {
-    card_2 types[13] = {0};
+type get_type(card* cards) {
+    card types[13] = {0};
     for (uint32_t i = 0; i < 5; i++) {
         types[cards[i]] += 1;
     }
@@ -335,16 +338,9 @@ void in_order_traverse(node* n, void func(node*, uint32_t*), uint32_t* sum) {
     in_order_traverse(n->right, func, sum);
 }
 
+static uint32_t times_called = 0;
 void calc_node_score(node* n, uint32_t* sum) {
-    static uint32_t times_called = 0;
-
     *sum += n->data->bid * (++times_called);
-    //printf("Adding %d * %d\n", n->data->bid, times_called);
-}
-
-//this seems to cause ub
-void free_node_wrapper(node* n, uint32_t* dud) {
-    free_node(n);
 }
 
 void printNode(node* n, uint32_t* dud) {
@@ -364,7 +360,6 @@ void part1(const char* path) {
         char* lines[1024] = {0};
         node* nodes[1024] = {0};
 
-        //this is maybe not the most legible thing I've ever written
         lines[0] = readLine(input, NULL);
         node* hands = init_node(init_hand(lines[0], false));
         nodes[0] = hands;
@@ -395,6 +390,7 @@ void part1(const char* path) {
     fclose(input);
 }
 
+
 void part2(const char* path) {
     FILE* input = fopen(path, "r");
 
@@ -418,6 +414,8 @@ void part2(const char* path) {
             }
         }
         uint32_t sum = 0;
+        //in_order_traverse(hands, printNode, NULL);
+        times_called = 0;
         in_order_traverse(hands, calc_node_score, &sum);
 
         printf("PART 2: The total winnings are %d\n", sum);
