@@ -81,7 +81,7 @@ hashmap* init_hashmap(uint32_t size, hashmap* old_map) {
 }
 
 hashmap* new_map() {
-    return init_hashmap(2048, NULL);
+    return init_hashmap(1024, NULL);
 }
 
 void free_hashmap(hashmap* map) {
@@ -217,8 +217,8 @@ void part1(const char* path) {
 
         fork current = get_value(map, begin);
         while (!forks_equal(current.id, dest)) {
-            printf("dir: %d \n", directions[direction_index]);
-            print_fork(&current);
+            //printf("dir: %d \n", directions[direction_index]);
+            //print_fork(&current);
             switch (directions[direction_index]) {
                 case 'L':
                     current = get_value(map, current.left);
@@ -257,13 +257,43 @@ void part1(const char* path) {
     fclose(input);
 }
 
-bool at_end(fork* state, uint32_t count) {
+bool at_end(fork state) {
+    return state.id[2] == 'Z';
+}
+
+//least common multiple
+uint64_t LCM(uint32_t* nums, uint32_t count) {
+    uint64_t copy[count];
     for (uint32_t i = 0; i < count; i++) {
-        if (state[i].id[2] != 'Z') {
-            return false;
-        }
+        copy[i] = nums[i];
     }
-    return true;
+
+    bool finished = false;
+    while (!finished) {
+        bool nums_equal = true;
+        for (uint32_t i = 1; i < count; i++) {
+            if (copy[0] != copy[i]) {
+                nums_equal = false;
+            }
+        }
+        if (nums_equal) {
+            finished = true;
+            break;
+        }
+
+        uint64_t min = copy[0];
+        uint32_t index = 0;
+        for (uint32_t i = 1; i < count; i++) {
+            if (copy[i] < min) {
+                min = copy[i];
+                index = i;
+            }
+        }
+
+        copy[index] += nums[index];
+    }
+
+    return copy[0];
 }
 
 void part2(const char* path) { 
@@ -288,7 +318,7 @@ void part2(const char* path) {
 
         while (!eof) {
             lines[numLines] = readLine(input, &eof);
-            
+
             if (!eof) {
                 fork f = parse_fork(lines[numLines]);
                 if (f.id[2] == 'A') {
@@ -300,15 +330,16 @@ void part2(const char* path) {
             }
         }
 
-        uint32_t sum = 0;
+        uint32_t sum[fork_count];;
+        memset(sum, 0, sizeof(uint32_t) * fork_count);
         uint32_t direction_index = 0;
         char empty[3] = {0, 0, 0};
 
-        bool done = false;
-        while (!done) {
-            for (uint32_t i = 0; i < fork_count; i++) {
-                printf("index: %d \n", i);
-                print_fork(&start_forks[i]);
+        printf("starting loop with %d forks\n", fork_count);
+        for (uint32_t i = 0; i < fork_count; i++) {
+            while (!at_end(start_forks[i])) {
+                //printf("index: %d \n", i);
+                //print_fork(&start_forks[i]);
                 switch (directions[direction_index]) {
                     case 'L':
                         start_forks[i] = get_value(map, start_forks[i].left);
@@ -325,16 +356,16 @@ void part2(const char* path) {
                     fprintf(stderr, "PART 2: recieved an empty value\n");
                     break;
                 }
-            }
-            sum++;
+                sum[i]++;
 
-            if (directions[++direction_index] == '\0') {
-                direction_index = 0;
+                if (directions[++direction_index] == '\0') {
+                    direction_index = 0;
+                    //printf("reset directions... sum is %d\n", sum);
+                }
             }
-            done = at_end(start_forks, fork_count);
+            printf("PART 2: It took %d steps to reach the end\n", sum[i]);
         }
-
-        printf("PART 2: It took %d steps to reach the end\n", sum);
+        printf("PART 2: The final answer is %lu\n", LCM(sum, fork_count));
 
         free_hashmap(map);
         free(directions);
@@ -346,7 +377,7 @@ void part2(const char* path) {
         fprintf(stderr, "PART 2: Couldn't open file\n");
     }
 
-    fclose(input);
+fclose(input);
 }
 
 int main (int argc, char** argv) {
