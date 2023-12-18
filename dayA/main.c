@@ -33,6 +33,15 @@ typedef struct matrix {
     uint32_t ysize;
 } matrix;
 
+matrix* create_mat(uint32_t xsize, uint32_t ysize) {
+    matrix* m = malloc(sizeof(matrix));
+    m->data = malloc(sizeof(char*) * ysize);
+    memset(m->data, 0, sizeof(char*) * ysize);
+    m->ysize = ysize;
+    m->xsize = xsize;
+    return m;
+}
+
 matrix* load_file(FILE* f) {
     bool eof = false;
     uint32_t xsize = 0, ysize = 0;
@@ -53,13 +62,19 @@ matrix* load_file(FILE* f) {
         xsize++;
     }
 
-    matrix* m = malloc(sizeof(matrix));
-    m->data = malloc(sizeof(char*) * ysize);
-    m->ysize = ysize;
-    m->xsize = xsize;
+    matrix* m = create_mat(xsize, ysize);
     memcpy(m->data, lines, sizeof(char*) * ysize);
 
     return m;
+}
+
+void populate_default_mat(matrix* m) {
+    char* lines[1024] = {0};
+    for (uint32_t i = 0; i < m->ysize; i++) {
+        lines[i] = malloc(sizeof(char) * m->xsize);
+        memset(lines[i], '.', sizeof(char) * m->xsize);
+    }
+    memcpy(m->data, lines, sizeof(char*) * m->ysize);
 }
 
 void free_matrix(matrix* m) {
@@ -198,21 +213,21 @@ pos find_loop(matrix* m, uint32_t* num_steps, pos start) {
     pos so = s(m, start);
     pos ea = e(m, start);
     pos we = w(m, start);
-    print_pos(&no);
-    print_pos(&so);
-    print_pos(&ea);
-    print_pos(&we);
+    //print_pos(&no);
+    //print_pos(&so);
+    //print_pos(&ea);
+    //print_pos(&we);
     if (connects_down(n(m, start))) {
-        return n(m, start);
+        return no;
     }
     if (connects_up(s(m, start))) {
-        return s(m, start);
+        return so;
     }
     if (connects_left(w(m, start))) {
-        return w(m, start);
+        return ea;
     }
     if (connects_right(e(m, start))) {
-        return e(m, start);
+        return we;
     }
     fprintf(stderr, "couldn't find a loop\n");
     return (pos){};
@@ -284,10 +299,106 @@ pos step(matrix* m, uint32_t* num_steps, const pos curr, pos* prev) {
     };
 
     *prev = curr;
-    *num_steps += 1;
+    if (num_steps) {
+        *num_steps += 1;
+    }
     return next;
 }
 
+void mark_pos(matrix* m, pos p, char c) {
+    m->data[p.y][p.x] = c;
+}
+
+void print_mat(matrix* m) {
+    for (uint32_t y = 0; y < m->ysize; y++) {
+        for (uint32_t x = 0; x < m->xsize; x++) {
+            printf("%c", m->data[y][x]);
+        }
+        printf("\n");
+    }
+    printf("\n");
+}
+
+bool visited(uint32_t x, uint32_t y, matrix* v) {
+    return v->data[y][x] != '.';
+}
+
+bool is_wall(uint32_t x, uint32_t y, matrix* m) {
+    char c = m->data[y][x];
+    return c == 'S' 
+        || c == '|' || c == '-' 
+        || c == 'L' || c == 'J'
+        || c == '7' || c == 'F';
+}
+
+void flood_fill(uint32_t x, uint32_t y, char c, matrix* m, matrix* v) {
+    if (x < 0 || x >= m->xsize || y < 0 || y >= m->ysize
+            || is_wall(x, y, m) 
+            || visited(x, y, v)) {
+        return;
+    }
+    //set visited
+    mark_pos(v, (pos){.x=x,.y=y}, c);
+    //fill
+    mark_pos(m, (pos){.x=x,.y=y}, c);
+
+    flood_fill(x, y+1, c, m, v);
+    flood_fill(x, y-1, c, m, v);
+    flood_fill(x-1, y, c, m, v);
+    flood_fill(x+1, y, c, m, v);
+    //flood_fill(x+1, y+1, c, m, v);
+    //flood_fill(x-1, y-1, c, m, v);
+    //flood_fill(x-1, y+1, c, m, v);
+    //flood_fill(x+1, y-1, c, m, v);
+}
+
+void fill_borders(matrix* m) {
+    matrix* visited = create_mat(m->xsize, m->ysize);
+    populate_default_mat(visited);
+
+    pos start_pos = find_start(m);
+    pos curr = find_loop(m, NULL, start_pos);
+    while (curr.curr != 'S') {
+        curr = step(m, NULL, curr, &start_pos);
+        
+        int xmod = curr.x - start_pos.x;
+        int ymod = curr.y - start_pos.y;
+
+        flood_fill(curr.x - (1 * ymod), curr.y, '$', m, visited);
+        flood_fill(curr.x, curr.y + (1 * xmod), '$', m, visited);
+
+        flood_fill(curr.x + (1 * ymod), curr.y, '#', m, visited);
+        flood_fill(curr.x, curr.y - (1 * xmod), '#', m, visited);
+
+    }
+
+    free_matrix(visited);
+}
+
+uint32_t count_enclosed(matrix* m) {
+    char enclosed = '.';
+    for (uint32_t y = 0; y < m->ysize; y++) {
+        if (!is_wall(0, y, m)) {
+            if (m->data[y][0] == '$') {
+                enclosed = '#';
+            } else {
+                enclosed = '$';
+            }
+            break;
+        }
+    }
+    printf("the enclosed character is %c\n", enclosed);
+
+    uint32_t sum = 0;
+    for (uint32_t y = 0; y < m->ysize; y++) {
+        for (uint32_t x = 0; x < m->xsize; x++) {
+            if (m->data[y][x] == enclosed) {
+                sum++;
+            }
+        }
+    }
+    return sum;
+}
 
 int main(int argc, char** argv) {
     char* path = INPUT;
@@ -299,15 +410,27 @@ int main(int argc, char** argv) {
     if (f) {
         uint32_t num_steps = 0;
         matrix* m = load_file(f);
+        matrix* loop = create_mat(m->xsize, m->ysize);
+        populate_default_mat(loop);
+
         pos start_pos = find_start(m);
+        mark_pos(loop, start_pos, 'S');
         pos curr = find_loop(m, &num_steps, start_pos);
+        mark_pos(loop, curr, curr.curr);
         while (curr.curr != 'S') {
             curr = step(m, &num_steps, curr, &start_pos);
+            mark_pos(loop, curr, curr.curr);
             //print_pos(&curr);
         }
-
         printf("The farthest point in the loop is %d steps away\n", (num_steps+1)/2);
 
+        print_mat(loop);
+        fill_borders(loop);
+        print_mat(loop);
+        printf("The number of enclosed tiles is %d \n", count_enclosed(loop));
+
+        free_matrix(loop);
+        free_matrix(m);
     } else {
         fprintf(stderr, "Couldn't open file\n");
     }
