@@ -1,4 +1,4 @@
-DAYS := $(addprefix day, 1 2 3 4 5 6 7 8 9 A)
+DAYS := $(addprefix day, 1 2 3 4 5 6 7 8 9 A B)
 OBJS := $(addprefix bin/, $(DAYS))
 
 CFLAGS := -g -Wall -Werror
